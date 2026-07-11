@@ -8,7 +8,7 @@
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; }
         .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .control-group { margin-bottom: 20px; }
-        input[type="text"], select, .calc-btn { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
+        select, .calc-btn { width: 100%; padding: 10px; margin-top: 5px; margin-bottom: 15px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; box-sizing: border-box; }
         .calc-btn { background-color: #2ecc71; color: white; border: none; cursor: pointer; font-weight: bold; }
         .calc-btn:hover { background-color: #27ae60; }
         .result-box { padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; display: none; }
@@ -21,9 +21,8 @@
         <h1 style="text-align: center; color: #2c3e50;">🗡️ 알반 훈련석 최저가 조합기</h1>
 
         <div class="control-group">
-            <label><strong>넥슨 API 키:</strong></label>
-            <input type="text" id="api-key" placeholder="발급받은 API 키를 입력하세요">
-            
+            <!-- API 키 입력칸 삭제됨 (보안 처리 완료) -->
+
             <label><strong>목표 보상 등급:</strong></label>
             <select id="grade-select">
                 <option value="SS">SS 등급 (190점~)</option>
@@ -31,6 +30,15 @@
                 <option value="A">A 등급 (100~129점)</option>
                 <option value="B">B 등급 (70~99점)</option>
             </select>
+
+            <label><strong>고정할 인원수 훈련석:</strong></label>
+            <select id="player-select">
+                <option value="선택 안 함">선택 안 함 (0점)</option>
+                <option value="4인">4인 (0점)</option>
+                <option value="6인">6인 (0점)</option>
+                <option value="무제한">무제한 (-30점)</option>
+            </select>
+
             <button class="calc-btn" onclick="startProcess()">가장 저렴한 조합 찾기</button>
         </div>
 
@@ -42,7 +50,6 @@
     </div>
 
     <script>
-        // 실제 게임 내 경매장 검색어와 100% 일치하도록 공식 이름으로 수정됨
         const STONES = {
             difficulty: [
                 { name: "선택 안 함", searchName: null, score: 0, price: 0 },
@@ -116,27 +123,22 @@
             "SS": { min: 190, max: 9999 }, "S":  { min: 130, max: 189 }, "A":  { min: 100, max: 129 }, "B":  { min: 70, max: 99 }
         };
 
-        // API 호출 함수 (에러 코드/응답 코드 반환 로직 추가)
-        async function fetchLowestPrice(itemName, apiKey) {
-            const targetUrl = `https://open.api.nexon.com/mabinogi/v1/auction/list?item_name=${encodeURIComponent(itemName)}`;
+        // 직접 넥슨을 찌르지 않고, 백엔드(/api/search)를 호출함
+        async function fetchLowestPrice(itemName) {
+            const targetUrl = `/api/search?itemName=${encodeURIComponent(itemName)}`;
             
             let response;
             try {
-                response = await fetch(targetUrl, {
-                    method: 'GET',
-                    headers: { 'x-nxopen-api-key': apiKey }
-                });
+                response = await fetch(targetUrl);
             } catch (networkError) {
-                throw new Error(`[네트워크 오류] API 서버에 연결할 수 없습니다.\n상세: ${networkError.message}`);
+                throw new Error(`[네트워크 오류] 서버에 연결할 수 없습니다.\n상세: ${networkError.message}`);
             }
 
-            // 응답을 JSON으로 파싱 (넥슨 에러 메시지도 JSON 형태로 오기 때문)
             const data = await response.json();
 
-            // HTTP 코드가 200번대가 아니거나 서버에서 명시적 에러를 보낸 경우
             if (!response.ok || data.error) {
                 const httpCode = response.status;
-                const nexonCode = data.error ? data.error.name : '코드 알 수 없음';
+                const nexonCode = data.error ? data.error.name : '알 수 없음';
                 const nexonMsg = data.error ? data.error.message : '알 수 없는 서버 오류입니다.';
                 throw new Error(`[응답코드: ${httpCode}] [오류코드: ${nexonCode}]\n상세 내용: ${nexonMsg}`);
             }
@@ -155,63 +157,64 @@
         }
 
         async function startProcess() {
-            const apiKey = document.getElementById('api-key').value.trim();
             const statusText = document.getElementById('status-text');
             const resultBox = document.getElementById('result-box');
+            const selectedPlayerName = document.getElementById('player-select').value;
             
-            if (!apiKey) {
-                statusText.style.color = '#e74c3c';
-                statusText.innerText = '⚠️ 넥슨 API 키를 입력해주세요.';
-                return;
-            }
-
             resultBox.style.display = 'none';
             statusText.style.color = '#2980b9';
 
+            // 선택된 인원수 훈련석 추출
+            const selectedPlayerStone = STONES.players.find(p => p.name === selectedPlayerName);
+
             try {
-                // 하나씩 순차적으로 조회하여 API Rate Limit(호출 제한) 방지 및 진행률 표시
-                for (let category in STONES) {
+                // 인원수 훈련석 가격 우선 조회 (선택한 경우)
+                if (selectedPlayerStone.searchName) {
+                    statusText.innerText = `🔍 경매장 조회 중...\n[ ${selectedPlayerStone.name} ]`;
+                    selectedPlayerStone.price = await fetchLowestPrice(selectedPlayerStone.searchName);
+                }
+
+                // 나머지 카테고리(난이도, 파티, 몬스터) 가격 조회
+                const targetCategories = ['difficulty', 'party', 'monster'];
+                for (let category of targetCategories) {
                     for (let stone of STONES[category]) {
                         if (stone.searchName) {
                             statusText.innerText = `🔍 경매장 조회 중...\n[ ${stone.name} ]`;
-                            stone.price = await fetchLowestPrice(stone.searchName, apiKey);
-                            // API 호출 제한 방지를 위해 0.15초씩 대기
-                            await new Promise(r => setTimeout(r, 150)); 
+                            stone.price = await fetchLowestPrice(stone.searchName);
+                            await new Promise(r => setTimeout(r, 150)); // API 호출 속도 조절
                         }
                     }
                 }
                 
                 statusText.innerText = '✅ 모든 가격 데이터 조회 완료!';
                 statusText.style.color = '#27ae60';
-                calculateBestCombination();
+                calculateBestCombination(selectedPlayerStone);
                 resultBox.style.display = 'block';
 
             } catch (error) {
                 console.error(error);
                 statusText.style.color = '#c0392b';
-                // 요청하신 '오류코드와 응답코드'가 포함된 에러 메시지를 화면에 출력합니다.
-                statusText.innerText = `❌ 오류가 발생했습니다.\n\n${error.message}\n\n(API 키를 다시 확인하거나 잠시 후 시도해주세요)`;
+                statusText.innerText = `❌ 오류가 발생했습니다.\n\n${error.message}`;
             }
         }
 
-        function calculateBestCombination() {
+        function calculateBestCombination(selectedPlayerStone) {
             const targetGradeKey = document.getElementById('grade-select').value;
             const targetScoreRange = GRADES[targetGradeKey];
             let minTotalPrice = Infinity;
             let bestCombo = null;
 
+            // 인원수는 선택한 것으로 고정하고 나머지 3개 카테고리만 조합 (루프 간소화)
             for (let d of STONES.difficulty) {
-                for (let pl of STONES.players) {
-                    for (let pa of STONES.party) {
-                        for (let m of STONES.monster) {
-                            let totalScore = d.score + pl.score + pa.score + m.score;
-                            let totalPrice = d.price + pl.price + pa.price + m.price;
+                for (let pa of STONES.party) {
+                    for (let m of STONES.monster) {
+                        let totalScore = d.score + selectedPlayerStone.score + pa.score + m.score;
+                        let totalPrice = d.price + selectedPlayerStone.price + pa.price + m.price;
 
-                            if (totalScore >= targetScoreRange.min && totalScore <= targetScoreRange.max) {
-                                if (totalPrice < minTotalPrice) {
-                                    minTotalPrice = totalPrice;
-                                    bestCombo = { difficulty: d, players: pl, party: pa, monster: m, totalScore, totalPrice };
-                                }
+                        if (totalScore >= targetScoreRange.min && totalScore <= targetScoreRange.max) {
+                            if (totalPrice < minTotalPrice) {
+                                minTotalPrice = totalPrice;
+                                bestCombo = { difficulty: d, players: selectedPlayerStone, party: pa, monster: m, totalScore, totalPrice };
                             }
                         }
                     }
@@ -230,7 +233,7 @@
                     </p>
                     <ul>
                         <li><strong>난이도:</strong> ${bestCombo.difficulty.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.difficulty.price)})</span></li>
-                        <li><strong>인원수:</strong> ${bestCombo.players.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.players.price)})</span></li>
+                        <li><strong>인원수 (고정):</strong> ${bestCombo.players.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.players.price)})</span></li>
                         <li><strong>파티원:</strong> ${bestCombo.party.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.party.price)})</span></li>
                         <li><strong>몬스터:</strong> ${bestCombo.monster.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.monster.price)})</span></li>
                     </ul>
