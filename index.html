@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>마비노기 알반 훈련석 최저가 계산기</title>
+    <style>
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; }
+        .container { max-width: 600px; margin: 0 auto; }
+        .result-box { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🗡️ 알반 훈련석 최저가 조합기</h1>
+        <p>원하는 보상 등급을 선택하면, 경매장 최저가 기준 가장 저렴한 훈련석 조합을 알려줍니다.</p>
+
+        <!-- 목표 등급 선택 영역 -->
+        <div>
+            <label for="grade-select"><strong>목표 보상 등급:</strong></label>
+            <select id="grade-select">
+                <option value="SS">SS 등급 (190점~)</option>
+                <option value="S">S 등급 (130~189점)</option>
+                <option value="A">A 등급 (100~129점)</option>
+                <option value="B">B 등급 (70~99점)</option>
+            </select>
+            <button onclick="calculateBestCombination()">조합 찾기</button>
+        </div>
+
+        <!-- 결과 출력 영역 -->
+        <div class="result-box">
+            <h3>추천 조합 결과</h3>
+            <p id="result-text">등급을 선택하고 버튼을 눌러주세요.</p>
+        </div>
+    </div>
+
+    <script>
+        // 넥슨 API를 호출 후 조합 계산 로직
+        function calculateBestCombination() {
+            const selectedGrade = document.getElementById('grade-select').value;
+            document.getElementById('result-text').innerText = 
+                `${selectedGrade} 등급 최저가 조합을 계산 중입니다... (기능 개발 중)`;
+        }
+    </script>
+</body>
+</html>
