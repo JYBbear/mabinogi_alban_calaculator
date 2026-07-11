@@ -5,111 +5,206 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>마비노기 알반 훈련석 최저가 계산기</title>
     <style>
-        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; }
-        .container { max-width: 600px; margin: 0 auto; }
-        .result-box { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #f9f9f9; }
-        ul { line-height: 1.6; }
+        body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; }
+        .container { max-width: 600px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
+        .api-box { background-color: #eef2f5; padding: 15px; border-radius: 8px; margin-bottom: 20px; border: 1px solid #d1d8e0; }
+        .api-box input { width: calc(100% - 100px); padding: 8px; margin-right: 5px; border: 1px solid #ccc; border-radius: 4px; }
+        .api-box button { padding: 8px 15px; background-color: #3498db; color: white; border: none; border-radius: 4px; cursor: pointer; }
+        .api-box button:hover { background-color: #2980b9; }
+        .control-group { margin-bottom: 20px; }
+        select, .calc-btn { padding: 10px; font-size: 16px; border-radius: 4px; border: 1px solid #ccc; }
+        .calc-btn { background-color: #2ecc71; color: white; border: none; cursor: pointer; font-weight: bold; width: 100%; margin-top: 10px; }
+        .calc-btn:hover { background-color: #27ae60; }
+        .result-box { margin-top: 20px; padding: 15px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; }
+        #status-text { color: #e67e22; font-weight: bold; margin-bottom: 10px; font-size: 0.9em; }
+        ul { line-height: 1.8; padding-left: 20px; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1>🗡️ 알반 훈련석 최저가 조합기</h1>
-        <p>원하는 보상 등급을 선택하면, 경매장 최저가 기준 가장 저렴한 훈련석 조합을 알려줍니다. (현재는 테스트용 임시 가격 적용)</p>
+        <h1 style="text-align: center; color: #2c3e50;">🗡️ 알반 훈련석 최저가 조합기</h1>
+        
+        <!-- API 설정 영역 -->
+        <div class="api-box">
+            <label for="api-key" style="display: block; margin-bottom: 8px; font-size: 0.9em;">
+                <strong>Nexon OpenAPI Key</strong> (개인 키를 입력해주세요)
+            </label>
+            <input type="password" id="api-key" placeholder="test_xxxxxxxxxxxxxxxxxxxxxxxxxx">
+            <button onclick="saveApiKey()">저장</button>
+            <p style="font-size: 0.8em; color: gray; margin-top: 5px; margin-bottom: 0;">* 키는 브라우저에만 안전하게 저장됩니다.</p>
+        </div>
 
-        <div>
-            <label for="grade-select"><strong>목표 보상 등급:</strong></label>
-            <select id="grade-select">
+        <!-- 옵션 선택 영역 -->
+        <div class="control-group">
+            <label for="grade-select" style="display: block; margin-bottom: 8px;"><strong>목표 보상 등급:</strong></label>
+            <select id="grade-select" style="width: 100%;">
                 <option value="SS">SS 등급 (190점~)</option>
                 <option value="S">S 등급 (130~189점)</option>
                 <option value="A">A 등급 (100~129점)</option>
                 <option value="B">B 등급 (70~99점)</option>
-                <option value="C">C 등급 (0~69점)</option>
+                <!-- C등급 제거됨 -->
             </select>
-            <button onclick="calculateBestCombination()">최저가 조합 찾기</button>
+            <button class="calc-btn" onclick="startProcess()">실시간 경매장 조회 및 조합 찾기</button>
         </div>
 
-        <div class="result-box" id="result-box">
-            <h3>추천 조합 결과</h3>
-            <div id="result-text">등급을 선택하고 버튼을 눌러주세요.</div>
+        <!-- 진행 상태 및 결과 출력 영역 -->
+        <div id="status-text"></div>
+        <div class="result-box" id="result-box" style="display: none;">
+            <h3 style="margin-top: 0; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px;">추천 조합 결과</h3>
+            <div id="result-text"></div>
         </div>
     </div>
 
     <script>
-        // 1. 훈련석 데이터 및 임시 가격 세팅 (나중에 이 가격을 API로 업데이트)
-        // '선택 안 함'은 아무 돌도 넣지 않는 경우 (비용 0, 점수 0)
+        // 1. 훈련석 데이터 구조 (경매장 정확한 명칭인 searchName 추가, price는 초기화)
         const STONES = {
             difficulty: [
-                { name: "선택 안 함", score: 0, price: 0 },
-                { name: "하드중급", score: 130, price: 5000000 },
-                { name: "하드일반", score: 100, price: 1500000 },
-                { name: "상급", score: 70, price: 200000 },
-                { name: "중급", score: 50, price: 50000 }
+                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
+                { name: "하드중급", searchName: "알반 기사단 훈련석 [난이도: 하드 중급]", score: 130, price: Infinity },
+                { name: "하드일반", searchName: "알반 기사단 훈련석 [난이도: 하드 일반]", score: 100, price: Infinity },
+                { name: "상급", searchName: "알반 기사단 훈련석 [난이도: 상급]", score: 70, price: Infinity },
+                { name: "중급", searchName: "알반 기사단 훈련석 [난이도: 중급]", score: 50, price: Infinity }
             ],
             players: [
-                { name: "선택 안 함", score: 0, price: 0 },
-                { name: "4인", score: 0, price: 50000 },
-                { name: "6인", score: 0, price: 30000 },
-                { name: "무제한", score: -30, price: 10000 }
+                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
+                { name: "4인", searchName: "알반 기사단 훈련석 [인원수: 4인]", score: 0, price: Infinity },
+                { name: "6인", searchName: "알반 기사단 훈련석 [인원수: 6인]", score: 0, price: Infinity },
+                { name: "무제한", searchName: "알반 기사단 훈련석 [인원수: 무제한]", score: -30, price: Infinity }
             ],
             party: [
-                { name: "선택 안 함", score: 0, price: 0 },
-                { name: "최대대미지 50%", score: 45, price: 1200000 },
-                { name: "생명력 50%", score: 30, price: 500000 },
-                { name: "크리티컬 확률 50%", score: 20, price: 300000 },
-                { name: "생명력 70%", score: 10, price: 100000 }
-                // TODO: 필요한 훈련석 종류를 여기에 모두 추가하면 됩니다.
+                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
+                { name: "최대대미지 50%", searchName: "알반 기사단 훈련석 [파티원: 최대 대미지 50%]", score: 45, price: Infinity },
+                { name: "생명력 50%", searchName: "알반 기사단 훈련석 [파티원: 생명력 50%]", score: 30, price: Infinity },
+                { name: "크리티컬 확률 50%", searchName: "알반 기사단 훈련석 [파티원: 크리티컬 확률 50%]", score: 20, price: Infinity },
+                { name: "생명력 70%", searchName: "알반 기사단 훈련석 [파티원: 생명력 70%]", score: 10, price: Infinity }
             ],
             monster: [
-                { name: "선택 안 함", score: 0, price: 0 },
-                { name: "생명력 500%", score: 45, price: 2000000 },
-                { name: "등장 수 200%", score: 40, price: 2500000 },
-                { name: "대미지 300%", score: 30, price: 800000 },
-                { name: "보호 150%", score: 25, price: 600000 },
-                { name: "방어 110%", score: 10, price: 100000 }
-                // TODO: 필요한 훈련석 종류를 여기에 모두 추가하면 됩니다.
+                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
+                { name: "생명력 500%", searchName: "알반 기사단 훈련석 [몬스터: 생명력 500%]", score: 45, price: Infinity },
+                { name: "등장 수 200%", searchName: "알반 기사단 훈련석 [몬스터: 등장 수 200%]", score: 40, price: Infinity },
+                { name: "대미지 300%", searchName: "알반 기사단 훈련석 [몬스터: 대미지 300%]", score: 30, price: Infinity },
+                { name: "보호 150%", searchName: "알반 기사단 훈련석 [몬스터: 보호 150%]", score: 25, price: Infinity },
+                { name: "방어 110%", searchName: "알반 기사단 훈련석 [몬스터: 방어 110%]", score: 10, price: Infinity }
             ]
         };
 
-        // 2. 보상 등급별 점수 구간 정의
         const GRADES = {
             "SS": { min: 190, max: 9999 },
             "S":  { min: 130, max: 189 },
             "A":  { min: 100, max: 129 },
-            "B":  { min: 70, max: 99 },
-            "C":  { min: -9999, max: 69 }
+            "B":  { min: 70, max: 99 }
         };
 
-        // 3. 최저가 조합 계산
+        // 초기 로드 시 저장된 API 키 불러오기
+        window.onload = function() {
+            const savedKey = localStorage.getItem('nexonApiKey');
+            if(savedKey) {
+                document.getElementById('api-key').value = savedKey;
+            }
+        };
+
+        // API 키 로컬 스토리지에 저장
+        function saveApiKey() {
+            const key = document.getElementById('api-key').value;
+            if(key.trim() === '') {
+                alert('API 키를 입력해주세요.');
+                return;
+            }
+            localStorage.setItem('nexonApiKey', key);
+            alert('키가 브라우저에 안전하게 저장되었습니다.');
+        }
+
+        // 프로세스 시작 (API 호출 -> 가격 업데이트 -> 조합 계산)
+        async function startProcess() {
+            const apiKey = document.getElementById('api-key').value;
+            if(!apiKey) {
+                alert('먼저 Nexon OpenAPI Key를 입력하고 저장해주세요.');
+                return;
+            }
+
+            const statusText = document.getElementById('status-text');
+            const resultBox = document.getElementById('result-box');
+            resultBox.style.display = 'none';
+
+            try {
+                // 1. 모든 카테고리를 돌면서 경매장 최저가 조회
+                for(let category in STONES) {
+                    for(let stone of STONES[category]) {
+                        if(stone.searchName) {
+                            statusText.innerText = `[경매장 조회 중] ${stone.name}...`;
+                            stone.price = await fetchLowestPrice(stone.searchName, apiKey);
+                            // API 호출 속도 제한(Rate Limit)을 피하기 위해 0.1초 대기
+                            await new Promise(resolve => setTimeout(resolve, 100)); 
+                        }
+                    }
+                }
+                
+                statusText.innerText = '경매장 가격 업데이트 완료! 최적의 조합을 계산합니다...';
+                
+                // 2. 조합 계산 실행
+                calculateBestCombination();
+                
+                statusText.innerText = '';
+                resultBox.style.display = 'block';
+
+            } catch (error) {
+                statusText.innerText = '오류 발생: API 키를 확인하거나 잠시 후 다시 시도해주세요.';
+                console.error(error);
+                alert("경매장 정보를 가져오는데 실패했습니다.\n- API 키가 정확한지 확인해주세요.\n- 경매장 점검 중일 수 있습니다.");
+            }
+        }
+
+        // 넥슨 API 호출 함수 (특정 아이템 최저가 찾기)
+        async function fetchLowestPrice(itemName, apiKey) {
+            const url = `https://open-api.nexon.com/mabinogi/v1/auction/list?item_name=${encodeURIComponent(itemName)}`;
+            const response = await fetch(url, {
+                method: 'GET',
+                headers: {
+                    'x-nxopen-api-key': apiKey
+                }
+            });
+
+            if (!response.ok) {
+                throw new Error('API Request Failed');
+            }
+
+            const data = await response.json();
+            
+            if (data.auction_item && data.auction_item.length > 0) {
+                // 경매장 리스트 중 가장 싼 가격(auction_price_per_unit) 찾기
+                let minPrice = Infinity;
+                data.auction_item.forEach(item => {
+                    if(item.auction_price_per_unit < minPrice) {
+                        minPrice = item.auction_price_per_unit;
+                    }
+                });
+                return minPrice;
+            } else {
+                // 매물이 없는 경우 무한대로 설정 (조합에서 자동 제외됨)
+                return Infinity; 
+            }
+        }
+
+        // 3. 최저가 조합 계산 함수
         function calculateBestCombination() {
             const targetGradeKey = document.getElementById('grade-select').value;
             const targetScoreRange = GRADES[targetGradeKey];
 
-            let minTotalPrice = Infinity; // 가장 싼 가격을 기록할 변수 (처음엔 무한대로 설정)
-            let bestCombo = null; // 가장 싼 조합을 저장할 변수
+            let minTotalPrice = Infinity;
+            let bestCombo = null;
 
-            // 4중 반복문 (모든 경우의 수를 탐색)
             for (let d of STONES.difficulty) {
                 for (let pl of STONES.players) {
                     for (let pa of STONES.party) {
                         for (let m of STONES.monster) {
                             
-                            // 현재 조합의 총 점수와 총 가격 계산
                             let totalScore = d.score + pl.score + pa.score + m.score;
                             let totalPrice = d.price + pl.price + pa.price + m.price;
 
-                            // 1. 해당 점수가 목표 등급 범위 안에 들어가고
-                            // 2. 지금까지 찾은 조합의 가격보다 저렴하다면 갱신!
                             if (totalScore >= targetScoreRange.min && totalScore <= targetScoreRange.max) {
                                 if (totalPrice < minTotalPrice) {
                                     minTotalPrice = totalPrice;
-                                    bestCombo = {
-                                        difficulty: d,
-                                        players: pl,
-                                        party: pa,
-                                        monster: m,
-                                        totalScore: totalScore,
-                                        totalPrice: totalPrice
-                                    };
+                                    bestCombo = { difficulty: d, players: pl, party: pa, monster: m, totalScore, totalPrice };
                                 }
                             }
                         }
@@ -117,25 +212,26 @@
                 }
             }
 
-            // 4. 결과를 화면에 출력
             const resultDiv = document.getElementById('result-text');
-            
-            if (bestCombo) {
-                // 골드 단위를 보기 좋게 콤마(,) 찍어주는 함수
-                const formatGold = (num) => num.toLocaleString() + " G";
+            const formatGold = (num) => num === Infinity ? "매물 없음" : num.toLocaleString() + " G";
 
+            if (bestCombo && bestCombo.totalPrice !== Infinity) {
                 resultDiv.innerHTML = `
-                    <h4 style="color: #2c3e50; margin-bottom: 5px;">👑 목표 등급: ${targetGradeKey}</h4>
-                    <p style="margin-top: 0;">총 점수: <strong>${bestCombo.totalScore}점</strong> / 총 예상 비용: <strong style="color: #e74c3c;">${formatGold(bestCombo.totalPrice)}</strong></p>
+                    <h4 style="color: #2980b9; margin-bottom: 5px;">🎯 목표 등급: ${targetGradeKey}</h4>
+                    <p style="margin-top: 0; font-size: 1.1em;">
+                        총 획득 점수: <strong>${bestCombo.totalScore}점</strong><br>
+                        총 예상 비용: <strong style="color: #e74c3c; font-size: 1.2em;">${formatGold(bestCombo.totalPrice)}</strong>
+                    </p>
                     <ul>
-                        <li><strong>난이도:</strong> ${bestCombo.difficulty.name} <span style="color: gray; font-size: 0.9em;">(${bestCombo.difficulty.score}점, ${formatGold(bestCombo.difficulty.price)})</span></li>
-                        <li><strong>인원수:</strong> ${bestCombo.players.name} <span style="color: gray; font-size: 0.9em;">(${bestCombo.players.score}점, ${formatGold(bestCombo.players.price)})</span></li>
-                        <li><strong>파티원:</strong> ${bestCombo.party.name} <span style="color: gray; font-size: 0.9em;">(${bestCombo.party.score}점, ${formatGold(bestCombo.party.price)})</span></li>
-                        <li><strong>몬스터:</strong> ${bestCombo.monster.name} <span style="color: gray; font-size: 0.9em;">(${bestCombo.monster.score}점, ${formatGold(bestCombo.monster.price)})</span></li>
+                        <li><strong>난이도:</strong> ${bestCombo.difficulty.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.difficulty.price)})</span></li>
+                        <li><strong>인원수:</strong> ${bestCombo.players.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.players.price)})</span></li>
+                        <li><strong>파티원:</strong> ${bestCombo.party.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.party.price)})</span></li>
+                        <li><strong>몬스터:</strong> ${bestCombo.monster.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(bestCombo.monster.price)})</span></li>
                     </ul>
+                    <p style="font-size: 0.85em; color: #7f8c8d; margin-top: 15px;">* 매물이 없는 훈련석은 계산에서 제외되었습니다.</p>
                 `;
             } else {
-                resultDiv.innerHTML = `<p style="color: red;">조건을 만족하는 조합을 찾을 수 없습니다.</p>`;
+                resultDiv.innerHTML = `<p style="color: red; font-weight: bold;">조건을 만족하는 매물이 현재 경매장에 없습니다.</p>`;
             }
         }
     </script>
