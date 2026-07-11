@@ -156,7 +156,7 @@
 
         // 넥슨 API 호출 함수 (특정 아이템 최저가 찾기)
         async function fetchLowestPrice(itemName, apiKey) {
-            const url = `https://open-api.nexon.com/mabinogi/v1/auction/list?item_name=${encodeURIComponent(itemName)}`;
+            const url = `https://openapi.nexon.com/mabinogi/v1/auction/list?item_name=${encodeURIComponent(itemName)}`;
             const response = await fetch(url, {
                 method: 'GET',
                 headers: {
