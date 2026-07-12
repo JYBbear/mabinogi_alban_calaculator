@@ -161,7 +161,7 @@
         // 버셀 백엔드를 호출하여 최저가 가져오기
         async function fetchLowestPrice(itemName) {
             try {
-                const response = await fetch(`/api/auction?itemName=${encodeURIComponent(itemName)}`);
+                const response = await fetch(`/api/search?itemName=${encodeURIComponent(itemName)}`);
                 const data = await response.json();
 
                 if (data.error) throw new Error(data.error);
