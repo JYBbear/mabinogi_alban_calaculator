@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>마비노기 알반 훈련소 최저가 조합 계산기</title>
+    <title>마비노기 알반 훈련석 실시간 계산기</title>
     
     <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.0.13/css/select2.min.css" rel="stylesheet" />
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jquery/3.6.0/jquery.min.js"></script>
@@ -31,10 +31,11 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="text-align: center; color: #2c3e50; margin-bottom: 25px;">🗡️ 알반 훈련소 최저가 조합 계산기</h1>
+        <h1 style="text-align: center; color: #2c3e50; margin-bottom: 25px;">🗡️ 알반 훈련석 최저가 조합기</h1>
         
         <p class="site-description">
-            Nexon Open Api를 통한 실시간 경매장 조회로 목표 보상등급을 만족하는 최저가 훈련석 조합을 알려주는 사이트입니다.<br>
+            Nexon Open Api를 통한 실시간 경매장 조회로<br>
+            목표 보상등급을 만족하는 최저가 훈련석 조합을 알려주는 사이트입니다.<br>
             소지한 훈련석을 선택하시면 해당 훈련석이 포함된 최저가 조합을 확인 가능합니다.<br>
             <span style="font-size: 0.85em; color: #95a5a6;">(숨겨진 층 훈련석은 보상 점수에 영향을 주지 않아 제외했습니다.)</span>
         </p>
@@ -42,7 +43,8 @@
         <div class="control-group">
             <div class="input-box" style="flex: 1 1 100%; border-color: #3498db; background-color: #f4f9fc;">
                 <label>🎯 목표 보상 등급</label>
-                <select id="grade-select" class="searchable-select">
+                <!-- 항목이 적은 select는 simple-select 클래스 적용 (검색창 X) -->
+                <select id="grade-select" class="simple-select">
                     <option value="SS">SS 등급 (190점 이상)</option>
                     <option value="S">S 등급 (130~189점)</option>
                     <option value="A">A 등급 (100~129점)</option>
@@ -52,12 +54,12 @@
             
             <div class="input-box">
                 <label>난이도 훈련석</label>
-                <select id="diff-select" class="searchable-select"></select>
+                <select id="diff-select" class="simple-select"></select>
             </div>
 
             <div class="input-box">
                 <label>인원수 훈련석</label>
-                <select id="player-select" class="searchable-select"></select>
+                <select id="player-select" class="simple-select"></select>
             </div>
 
             <div class="input-box">
@@ -71,7 +73,7 @@
             </div>
         </div>
 
-        <button class="calc-btn" onclick="startProcess()">실시간 최저가 계산하기</button>
+        <button class="calc-btn" onclick="startProcess()">최저가 훈련석 조합 계산</button>
         
         <div id="status-text">데이터를 불러오는 중입니다...</div>
 
@@ -153,26 +155,34 @@
                 STONES[catKey].sort((a, b) => {
                     if (a.name === "선택 안 함") return -1;
                     if (b.name === "선택 안 함") return 1;
+                    // 점수순 정렬을 기본으로 하되, 점수가 같으면 자연 정렬 (숫자 크기대로)
                     if (b.score !== a.score) return b.score - a.score;
-                    return a.name.localeCompare(b.name);
+                    return a.name.localeCompare(b.name, 'ko', { numeric: true });
                 });
 
                 STONES[catKey].forEach(stone => {
                     const option = document.createElement('option');
                     option.value = stone.name;
-                    option.text = stone.name === "선택 안 함" ? "자유롭게 찾기" : `${stone.name} (${stone.score > 0 ? '+' : ''}${stone.score}점)`;
+                    option.text = stone.name === "선택 안 함" ? "지정하지 않음" : `${stone.name} (${stone.score > 0 ? '+' : ''}${stone.score}점)`;
                     selectEl.appendChild(option);
                 });
             }
             
+            // 1. 항목이 적어 스크롤이 없는 박스 (검색창 제거)
+            $('.simple-select').select2({
+                minimumResultsForSearch: Infinity // 검색창을 숨김 처리
+            });
+
+            // 2. 항목이 많아 검색이 필요한 박스 (검색 기능 + 실시간 이름순 정렬)
             $('.searchable-select').select2({
                 sorter: function(data) {
                     const searchTerm = $('.select2-search__field').val();
                     if (searchTerm) {
                         return data.sort(function(a, b) {
-                            if (a.text === "자유롭게 찾기") return -1;
-                            if (b.text === "자유롭게 찾기") return 1;
-                            return a.text.localeCompare(b.text);
+                            if (a.text === "지정하지 않음") return -1;
+                            if (b.text === "지정하지 않음") return 1;
+                            // numeric: true 속성을 줘서 120% 보다 50%가 먼저 오도록 자연 정렬
+                            return a.text.localeCompare(b.text, 'ko', { numeric: true });
                         });
                     }
                     return data; 
