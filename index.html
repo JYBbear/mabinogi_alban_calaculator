@@ -13,10 +13,9 @@
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; }
         .container { max-width: 700px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
         .control-group { display: flex; flex-wrap: wrap; gap: 15px; margin-bottom: 20px; }
-        .input-box { flex: 1 1 45%; background: #fdfdfd; padding: 10px; border: 1px solid #eee; border-radius: 8px; }
-        label { display: block; font-weight: bold; margin-bottom: 5px; font-size: 0.95em; color: #2c3e50; }
+        .input-box { flex: 1 1 45%; background: #fdfdfd; padding: 15px 10px; border: 1px solid #eee; border-radius: 8px; }
+        label { display: block; font-weight: bold; margin-bottom: 8px; font-size: 0.95em; color: #2c3e50; }
         select { width: 100%; padding: 10px; font-size: 15px; }
-        .checkbox-label { display: inline-flex; align-items: center; font-size: 0.85em; color: #e67e22; margin-top: 8px; cursor: pointer; font-weight: bold; }
         .calc-btn { width: 100%; padding: 12px; margin-top: 10px; font-size: 16px; border-radius: 6px; border: none; background-color: #2ecc71; color: white; font-weight: bold; cursor: pointer; transition: 0.2s; }
         .calc-btn:hover { background-color: #27ae60; }
         .result-box { padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; display: none; margin-top: 20px; }
@@ -31,10 +30,10 @@
 </head>
 <body>
     <div class="container">
-        <h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">🗡️ 알반 훈련석 최저가 조합 계산기</h1>
+        <h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">🗡️ 알반 훈련석 최저가 조합기</h1>
 
         <div class="control-group">
-            <div class="input-box" style="flex: 1 1 100%; border-color: #3498db;">
+            <div class="input-box" style="flex: 1 1 100%; border-color: #3498db; background-color: #f4f9fc;">
                 <label>🎯 목표 보상 등급</label>
                 <select id="grade-select" class="searchable-select">
                     <option value="SS">SS 등급 (190점 이상)</option>
@@ -47,25 +46,21 @@
             <div class="input-box">
                 <label>난이도 훈련석</label>
                 <select id="diff-select" class="searchable-select"></select>
-                <label class="checkbox-label"><input type="checkbox" id="diff-owned"> 해당 훈련석 소지 중</label>
             </div>
 
             <div class="input-box">
                 <label>인원수 훈련석</label>
                 <select id="player-select" class="searchable-select"></select>
-                <label class="checkbox-label"><input type="checkbox" id="player-owned"> 해당 훈련석 소지 중</label>
             </div>
 
             <div class="input-box">
                 <label>파티원 훈련석</label>
                 <select id="party-select" class="searchable-select"></select>
-                <label class="checkbox-label"><input type="checkbox" id="party-owned"> 해당 훈련석 소지 중</label>
             </div>
 
             <div class="input-box">
                 <label>몬스터 훈련석</label>
                 <select id="monster-select" class="searchable-select"></select>
-                <label class="checkbox-label"><input type="checkbox" id="monster-owned"> 해당 훈련석 소지 중</label>
             </div>
         </div>
 
@@ -148,7 +143,7 @@
                 const catKey = mapping[selectId];
                 const selectEl = document.getElementById(selectId);
                 
-                // 훈련석 정렬 로직
+                // 기본 정렬: 점수 내림차순
                 STONES[catKey].sort((a, b) => {
                     if (a.name === "선택 안 함") return -1;
                     if (b.name === "선택 안 함") return 1;
@@ -164,7 +159,20 @@
                 });
             }
             
-            $('.searchable-select').select2();
+            // 검색어 입력 시 실시간 가나다순(이름순) 정렬 처리
+            $('.searchable-select').select2({
+                sorter: function(data) {
+                    const searchTerm = $('.select2-search__field').val();
+                    if (searchTerm) {
+                        return data.sort(function(a, b) {
+                            if (a.text === "자유롭게 찾기") return -1;
+                            if (b.text === "자유롭게 찾기") return 1;
+                            return a.text.localeCompare(b.text);
+                        });
+                    }
+                    return data; // 검색어가 없으면 DOM에 있는 기본 점수순 유지
+                }
+            });
         }
 
         async function fetchLowestPrice(itemName) {
@@ -188,22 +196,22 @@
             statusText.style.color = '#2980b9';
             
             const selections = {
-                difficulty: { name: document.getElementById('diff-select').value, owned: document.getElementById('diff-owned').checked },
-                players: { name: document.getElementById('player-select').value, owned: document.getElementById('player-owned').checked },
-                party: { name: document.getElementById('party-select').value, owned: document.getElementById('party-owned').checked },
-                monster: { name: document.getElementById('monster-select').value, owned: document.getElementById('monster-owned').checked }
+                difficulty: document.getElementById('diff-select').value,
+                players: document.getElementById('player-select').value,
+                party: document.getElementById('party-select').value,
+                monster: document.getElementById('monster-select').value
             };
 
             const stonesToFetch = new Set();
             for (const category in selections) {
-                const sel = selections[category];
-                if (sel.name === "선택 안 함") {
+                const selectedName = selections[category];
+                if (selectedName === "선택 안 함") {
                     if (category === 'players') continue; 
                     STONES[category].forEach(s => { 
                         if(s.searchName && s.score >= 0) stonesToFetch.add(s);
                     });
                 } else {
-                    const stone = STONES[category].find(s => s.name === sel.name);
+                    const stone = STONES[category].find(s => s.name === selectedName);
                     if (stone && stone.searchName) stonesToFetch.add(stone);
                 }
             }
@@ -225,11 +233,10 @@
             const targetGradeKey = document.getElementById('grade-select').value;
             const targetScoreRange = GRADES[targetGradeKey];
             
-            // 필터링: 특정 항목이 선택되었다면 해당 항목만, 아니면 전체 탐색
-            const validDiffs = selections.difficulty.name !== "선택 안 함" ? STONES.difficulty.filter(s => s.name === selections.difficulty.name) : STONES.difficulty.filter(s => s.name === "선택 안 함" || (s.searchName && s.score >= 0 && s.price !== Infinity));
-            const validPlayers = selections.players.name !== "선택 안 함" ? STONES.players.filter(s => s.name === selections.players.name) : STONES.players.filter(s => s.name === "선택 안 함");
-            const validPartys = selections.party.name !== "선택 안 함" ? STONES.party.filter(s => s.name === selections.party.name) : STONES.party.filter(s => s.name === "선택 안 함" || (s.searchName && s.score >= 0 && s.price !== Infinity));
-            const validMonsters = selections.monster.name !== "선택 안 함" ? STONES.monster.filter(s => s.name === selections.monster.name) : STONES.monster.filter(s => s.name === "선택 안 함" || (s.searchName && s.score >= 0 && s.price !== Infinity));
+            const validDiffs = selections.difficulty !== "선택 안 함" ? STONES.difficulty.filter(s => s.name === selections.difficulty) : STONES.difficulty.filter(s => s.name === "선택 안 함" || (s.searchName && s.score >= 0 && s.price !== Infinity));
+            const validPlayers = selections.players !== "선택 안 함" ? STONES.players.filter(s => s.name === selections.players) : STONES.players.filter(s => s.name === "선택 안 함");
+            const validPartys = selections.party !== "선택 안 함" ? STONES.party.filter(s => s.name === selections.party) : STONES.party.filter(s => s.name === "선택 안 함" || (s.searchName && s.score >= 0 && s.price !== Infinity));
+            const validMonsters = selections.monster !== "선택 안 함" ? STONES.monster.filter(s => s.name === selections.monster) : STONES.monster.filter(s => s.name === "선택 안 함" || (s.searchName && s.score >= 0 && s.price !== Infinity));
 
             let possibleCombos = [];
 
@@ -240,15 +247,14 @@
                             let totalScore = d.score + pl.score + pa.score + m.score;
                             let originalPrice = d.price + pl.price + pa.price + m.price;
                             
-                            // 소지 체크박스가 체크된 훈련석의 경우 실지출 계산에서 제외(0원)
-                            let d_cost = (selections.difficulty.owned && selections.difficulty.name === d.name) ? 0 : d.price;
-                            let pl_cost = (selections.players.owned && selections.players.name === pl.name) ? 0 : pl.price;
-                            let pa_cost = (selections.party.owned && selections.party.name === pa.name) ? 0 : pa.price;
-                            let m_cost = (selections.monster.owned && selections.monster.name === m.name) ? 0 : m.price;
+                            // 선택한 훈련석(선택 안 함이 아닌 경우)은 소지 중인 것으로 간주하여 0원 처리
+                            let d_cost = (selections.difficulty !== "선택 안 함" && selections.difficulty === d.name) ? 0 : d.price;
+                            let pl_cost = (selections.players !== "선택 안 함" && selections.players === pl.name) ? 0 : pl.price;
+                            let pa_cost = (selections.party !== "선택 안 함" && selections.party === pa.name) ? 0 : pa.price;
+                            let m_cost = (selections.monster !== "선택 안 함" && selections.monster === m.name) ? 0 : m.price;
                             
                             let actualCost = d_cost + pl_cost + pa_cost + m_cost;
 
-                            // 실제 구매해야 하는 훈련석들의 가격이 Infinity(매물 없음)가 아닌 경우만 추가
                             if (totalScore >= targetScoreRange.min && totalScore <= targetScoreRange.max && actualCost !== Infinity) {
                                 possibleCombos.push({ difficulty: d, players: pl, party: pa, monster: m, totalScore, originalPrice, actualCost });
                             }
@@ -257,7 +263,6 @@
                 }
             }
 
-            // 실지출 비용(actualCost)이 적은 순으로 정렬, 같으면 총 가치(originalPrice)가 적은 순으로 정렬
             possibleCombos.sort((a, b) => {
                 if (a.actualCost !== b.actualCost) return a.actualCost - b.actualCost;
                 return a.originalPrice - b.originalPrice;
@@ -272,18 +277,17 @@
             }
 
             let html = '';
-            // 3순위까지 표시
             const maxDisplay = Math.min(possibleCombos.length, 3);
             const ranks = ["🥇 1순위 추천 조합", "🥈 2순위 추천 조합", "🥉 3순위 추천 조합"];
             const colors = ['#2980b9', '#7f8c8d', '#cd7f32'];
 
             for (let i = 0; i < maxDisplay; i++) {
                 const combo = possibleCombos[i];
-                // 소지 여부에 따른 표기 (내 훈련석이면 괄호로 소지중 표기)
-                const isDOwned = selections.difficulty.owned && selections.difficulty.name === combo.difficulty.name;
-                const isPlOwned = selections.players.owned && selections.players.name === combo.players.name;
-                const isPaOwned = selections.party.owned && selections.party.name === combo.party.name;
-                const isMOwned = selections.monster.owned && selections.monster.name === combo.monster.name;
+                
+                const isDOwned = selections.difficulty !== "선택 안 함" && selections.difficulty === combo.difficulty.name;
+                const isPlOwned = selections.players !== "선택 안 함" && selections.players === combo.players.name;
+                const isPaOwned = selections.party !== "선택 안 함" && selections.party === combo.party.name;
+                const isMOwned = selections.monster !== "선택 안 함" && selections.monster === combo.monster.name;
 
                 html += `
                     <div class="combo-card">
