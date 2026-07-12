@@ -43,7 +43,6 @@
         <div class="control-group">
             <div class="input-box" style="flex: 1 1 100%; border-color: #3498db; background-color: #f4f9fc;">
                 <label>🎯 목표 보상 등급</label>
-                <!-- 항목이 적은 select는 simple-select 클래스 적용 (검색창 X) -->
                 <select id="grade-select" class="simple-select">
                     <option value="SS">SS 등급 (190점 이상)</option>
                     <option value="S">S 등급 (130~189점)</option>
@@ -73,7 +72,7 @@
             </div>
         </div>
 
-        <button class="calc-btn" onclick="startProcess()">최저가 훈련석 조합 계산</button>
+        <button class="calc-btn" onclick="startProcess()">실시간 최저가 계산하기</button>
         
         <div id="status-text">데이터를 불러오는 중입니다...</div>
 
@@ -155,7 +154,6 @@
                 STONES[catKey].sort((a, b) => {
                     if (a.name === "선택 안 함") return -1;
                     if (b.name === "선택 안 함") return 1;
-                    // 점수순 정렬을 기본으로 하되, 점수가 같으면 자연 정렬 (숫자 크기대로)
                     if (b.score !== a.score) return b.score - a.score;
                     return a.name.localeCompare(b.name, 'ko', { numeric: true });
                 });
@@ -168,12 +166,10 @@
                 });
             }
             
-            // 1. 항목이 적어 스크롤이 없는 박스 (검색창 제거)
             $('.simple-select').select2({
-                minimumResultsForSearch: Infinity // 검색창을 숨김 처리
+                minimumResultsForSearch: Infinity 
             });
 
-            // 2. 항목이 많아 검색이 필요한 박스 (검색 기능 + 실시간 이름순 정렬)
             $('.searchable-select').select2({
                 sorter: function(data) {
                     const searchTerm = $('.select2-search__field').val();
@@ -181,7 +177,6 @@
                         return data.sort(function(a, b) {
                             if (a.text === "지정하지 않음") return -1;
                             if (b.text === "지정하지 않음") return 1;
-                            // numeric: true 속성을 줘서 120% 보다 50%가 먼저 오도록 자연 정렬
                             return a.text.localeCompare(b.text, 'ko', { numeric: true });
                         });
                     }
@@ -303,13 +298,18 @@
                 const isPaOwned = selections.party !== "선택 안 함" && selections.party === combo.party.name;
                 const isMOwned = selections.monster !== "선택 안 함" && selections.monster === combo.monster.name;
 
+                // 원래 가격과 실제 가격이 다를 때(즉, 소지한 훈련석이 쓰였을 때)만 문구 추가
+                let extraCostInfo = "";
+                if (combo.actualCost !== combo.originalPrice) {
+                    extraCostInfo = `<br><span style="font-size: 0.9em; color: #7f8c8d;">(소지 훈련석 가치 포함 총 비용: ${formatGold(combo.originalPrice)})</span>`;
+                }
+
                 html += `
                     <div class="combo-card">
                         <h4 style="margin: 0 0 10px 0; color: ${colors[i]};">${ranks[i]}</h4>
                         <p style="margin-top: 0; font-size: 1.05em;">
-                            총 획득 점수: <strong>${combo.totalScore}점</strong><br>
-                            실지출 예상 비용: <strong style="color: #e74c3c; font-size: 1.15em;">${formatGold(combo.actualCost)}</strong><br>
-                            <span style="font-size: 0.9em; color: #7f8c8d;">(소지 훈련석 가치 포함 총 비용: ${formatGold(combo.originalPrice)})</span>
+                            총 보상 점수: <strong>${combo.totalScore}점</strong><br>
+                            총 비용: <strong style="color: #e74c3c; font-size: 1.15em;">${formatGold(combo.actualCost)}</strong>${extraCostInfo}
                         </p>
                         <ul>
                             <li><strong>난이도:</strong> ${combo.difficulty.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.difficulty.price)}${isDOwned ? ' / 소지중' : ''})</span></li>
