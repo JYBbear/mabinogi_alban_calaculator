@@ -153,7 +153,7 @@
 
         async function fetchLowestPrice(itemName) {
             try {
-                const response = await fetch(`/api/auction?itemName=${encodeURIComponent(itemName)}`);
+                const response = await fetch(`/api/search?itemName=${encodeURIComponent(itemName)}`);
                 const data = await response.json();
 
                 if (data.error) throw new Error(data.error);
