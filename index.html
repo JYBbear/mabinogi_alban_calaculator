@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>마비노기 알반 훈련석 실시간 계산기 (Vercel)</title>
+    <title>마비노기 알반 훈련석 실시간 계산기 (JSON 연동)</title>
     <style>
         body { font-family: 'Malgun Gothic', sans-serif; padding: 20px; background-color: #f4f7f6; color: #333; }
         .container { max-width: 650px; margin: 0 auto; background: white; padding: 25px; border-radius: 12px; box-shadow: 0 4px 6px rgba(0,0,0,0.1); }
@@ -16,13 +16,13 @@
         .result-box { padding: 20px; border: 1px solid #ddd; border-radius: 8px; background-color: #fff; display: none; margin-top: 20px; }
         .combo-card { background: #f8f9fa; border-left: 4px solid #3498db; padding: 15px; margin-bottom: 15px; border-radius: 4px; }
         .combo-card:nth-child(2) { border-left-color: #95a5a6; }
-        #status-text { font-weight: bold; font-size: 0.95em; text-align: center; white-space: pre-wrap; line-height: 1.5; margin-top: 10px; min-height: 40px; }
+        #status-text { font-weight: bold; font-size: 0.95em; text-align: center; white-space: pre-wrap; line-height: 1.5; margin-top: 10px; min-height: 40px; color: #2980b9; }
         ul { line-height: 1.8; padding-left: 20px; margin-top: 10px; margin-bottom: 0; }
     </style>
 </head>
 <body>
     <div class="container">
-        <h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">🗡️ 알반 훈련석 최저가 조합 계산기</h1>
+        <h1 style="text-align: center; color: #2c3e50; margin-bottom: 30px;">🗡️ 알반 훈련석 최저가 조합기</h1>
 
         <div class="control-group">
             <div class="input-box" style="flex: 1 1 100%;">
@@ -36,53 +36,30 @@
             </div>
             
             <div class="input-box">
-                <label>난이도 훈련석</label>
-                <select id="diff-select">
-                    <option value="선택 안 함">지정하지 않음</option>
-                    <option value="하드 중급">하드 중급 (130점)</option>
-                    <option value="하드 일반">하드 일반 (100점)</option>
-                    <option value="상급">상급 (70점)</option>
-                    <option value="중급">중급 (50점)</option>
-                </select>
+                <label>난이도 고정</label>
+                <!-- 자바스크립트가 item.json을 읽고 자동으로 옵션을 채웁니다 -->
+                <select id="diff-select"></select>
             </div>
 
             <div class="input-box">
-                <label>인원수 훈련석</label>
-                <select id="player-select">
-                    <option value="선택 안 함">지정하지 않음</option>
-                    <option value="4인">4인 (0점)</option>
-                    <option value="6인">6인 (0점)</option>
-                    <option value="무제한">무제한 (-30점)</option>
-                </select>
+                <label>인원수 고정</label>
+                <select id="player-select"></select>
             </div>
 
             <div class="input-box">
-                <label>파티원 훈련석</label>
-                <select id="party-select">
-                    <option value="선택 안 함">지정하지 않음</option>
-                    <option value="최대대미지 50%">최대대미지 50% (45점)</option>
-                    <option value="생명력 50%">생명력 50% (30점)</option>
-                    <option value="크리티컬 확률 50%">크리티컬 확률 50% (20점)</option>
-                    <option value="생명력 70%">생명력 70% (10점)</option>
-                </select>
+                <label>파티원 고정</label>
+                <select id="party-select"></select>
             </div>
 
             <div class="input-box">
-                <label>몬스터 훈련석</label>
-                <select id="monster-select">
-                    <option value="선택 안 함">지정하지 않음</option>
-                    <option value="생명력 500%">생명력 500% (45점)</option>
-                    <option value="등장 수 200%">등장 수 200% (40점)</option>
-                    <option value="대미지 300%">대미지 300% (30점)</option>
-                    <option value="보호 150%">보호 150% (25점)</option>
-                    <option value="방어 110%">방어 110% (10점)</option>
-                </select>
+                <label>몬스터 고정</label>
+                <select id="monster-select"></select>
             </div>
         </div>
 
-        <button class="calc-btn" onclick="startProcess()">최저가 조합 계산하기</button>
+        <button class="calc-btn" onclick="startProcess()">실시간 최저가 2순위까지 계산하기</button>
         
-        <div id="status-text">대기 중...</div>
+        <div id="status-text">데이터를 불러오는 중입니다...</div>
 
         <div class="result-box" id="result-box">
             <h3 style="margin-top: 0; border-bottom: 2px solid #ecf0f1; padding-bottom: 10px; color: #2c3e50;">✨ 추천 조합 결과</h3>
@@ -91,80 +68,97 @@
     </div>
 
     <script>
+        // 기초 뼈대 데이터 세팅 (예외 처리 항목 포함)
         const STONES = {
-            difficulty: [
-                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
-                { name: "하드중급", searchName: "알반 기사단의 훈련석 [난이도-하드 중급]", score: 130, price: Infinity },
-                { name: "하드일반", searchName: "알반 기사단의 훈련석 [난이도-하드 일반]", score: 100, price: Infinity },
-                { name: "상급", searchName: "알반 기사단의 훈련석 [난이도-상급]", score: 70, price: Infinity },
-                { name: "중급", searchName: "알반 기사단의 훈련석 [난이도-중급]", score: 50, price: Infinity }
-            ],
-            players: [
-                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
-                { name: "4인", searchName: "알반 기사단의 훈련석 [훈련 인원-4인]", score: 0, price: Infinity },
-                { name: "6인", searchName: "알반 기사단의 훈련석 [훈련 인원-6인]", score: 0, price: Infinity },
-                { name: "무제한", searchName: "알반 기사단의 훈련석 [훈련 인원-무제한]", score: -30, price: Infinity }
-            ],
+            difficulty: [{ name: "선택 안 함", searchName: null, score: 0, price: 0 }],
+            players: [{ name: "선택 안 함", searchName: null, score: 0, price: 0 }],
             party: [
                 { name: "선택 안 함", searchName: null, score: 0, price: 0 },
-                { name: "최대대미지 50%", searchName: "알반 기사단의 훈련석 [파티원-최대 대미지 50%]", score: 45, price: Infinity },
-                
-                { name: "생명력 50%", searchName: "알반 기사단의 훈련석 [파티원-생명력 50%]", score: 30, price: Infinity },
-                
-                { name: "생명력 회복 속도 50%", searchName: "알반 기사단의 훈련석 [파티원-생명력 회복 속도 50%]", score: 20, price: Infinity },
-                { name: "마나 회복 속도 50%", searchName: "알반 기사단의 훈련석 [파티원-마나 회복 속도 50%]", score: 20, price: Infinity },
-                { name: "스태미나 회복 속도 50%", searchName: "알반 기사단의 훈련석 [파티원-스태미나 회복 속도 50%]", score: 20, price: Infinity },
-                { name: "근접 스킬 대미지 50%", searchName: "알반 기사단의 훈련석 [파티원-근접 스킬 대미지 50%]", score: 20, price: Infinity },
-                { name: "마법 시전 속도 50%", searchName: "알반 기사단의 훈련석 [파티원-마법 시전 속도 50%]", score: 20, price: Infinity },
-                { name: "궁수 조준 속도 50%", searchName: "알반 기사단의 훈련석 [파티원-궁수 조준 속도 50%]", score: 20, price: Infinity },
-                { name: "크리티컬 확률 50%", searchName: "알반 기사단의 훈련석 [파티원-크리티컬 확률 50%]", score: 20, price: Infinity },
-                { name: "최대 대미지 70%", searchName: "알반 기사단의 훈련석 [파티원-최대 대미지 70%]", score: 20, price: Infinity },
-                
-                { name: "생명력 회복 속도 70%", searchName: "알반 기사단의 훈련석 [파티원-생명력 회복 속도 70%]", score: 10, price: Infinity },
-                { name: "마나 회복 속도 70%", searchName: "알반 기사단의 훈련석 [파티원-마나 회복 속도 70%]", score: 10, price: Infinity },
-                { name: "스태미나 회복 속도 70%", searchName: "알반 기사단의 훈련석 [파티원-스태미나 회복 속도 70%]", score: 10, price: Infinity },
-                { name: "근접 스킬 대미지 70%", searchName: "알반 기사단의 훈련석 [파티원-근접 스킬 대미지 70%]", score: 10, price: Infinity },
-                { name: "마법 시전 속도 70%", searchName: "알반 기사단의 훈련석 [파티원-마법 시전 속도 70%]", score: 10, price: Infinity },
-                { name: "궁수 조준 속도 70%", searchName: "알반 기사단의 훈련석 [파티원-궁수 조준 속도 70%]", score: 10, price: Infinity },
-                { name: "크리티컬 확률 70%", searchName: "알반 기사단의 훈련석 [파티원-크리티컬 확률 70%]", score: 10, price: Infinity },
-                { name: "생명력 70%", searchName: "알반 기사단의 훈련석 [파티원-생명력 70%]", score: 10, price: Infinity }
+                // ★ 특별 예외 처리: 검색 안 함(null), 가격 0 처리, 목록에는 표시됨
+                { name: "재능 수련치 150%", searchName: null, score: -30, price: 0 } 
             ],
-            monster: [
-                { name: "선택 안 함", searchName: null, score: 0, price: 0 },
-                { name: "생명력 500%", searchName: "알반 기사단의 훈련석 [몬스터-생명력 500%]", score: 45, price: Infinity },
-                { name: "대미지 500%", searchName: "알반 기사단의 훈련석 [몬스터-대미지 500%]", score: 45, price: Infinity },
-
-                { name: "등장 수 200%", searchName: "알반 기사단의 훈련석 [몬스터-등장 수 200%]", score: 40, price: Infinity },
-
-                { name: "생명력 300%", searchName: "알반 기사단의 훈련석 [몬스터-생명력 300%]", score: 30, price: Infinity },
-                { name: "대미지 300%", searchName: "알반 기사단의 훈련석 [몬스터-대미지 300%]", score: 30, price: Infinity },
-                { name: "보호 150%", searchName: "알반 기사단의 훈련석 [몬스터-보호 150%]", score: 30, price: Infinity },
-
-                { name: "방어 150%", searchName: "알반 기사단의 훈련석 [몬스터-방어 150%]", score: 25, price: Infinity },
-                
-                { name: "등장수 150%", searchName: "알반 기사단의 훈련석 [몬스터-등장수 150%]", score: 20, price: Infinity },
-                { name: "보호 120%", searchName: "알반 기사단의 훈련석 [몬스터-보호 120%]", score: 20, price: Infinity },
-                { name: "지력 200%", searchName: "알반 기사단의 훈련석 [몬스터-지력 200%]", score: 20, price: Infinity },
-                { name: "행운 200%", searchName: "알반 기사단의 훈련석 [몬스터-행운 200%]", score: 20, price: Infinity },
-
-                { name: "방어 120%", searchName: "알반 기사단의 훈련석 [몬스터-방어 120%]", score: 15, price: Infinity },
-                { name: "지력 150%", searchName: "알반 기사단의 훈련석 [몬스터-지력 150%]", score: 15, price: Infinity },
-                { name: "행운 150%", searchName: "알반 기사단의 훈련석 [몬스터-행운 150%]", score: 15, price: Infinity },
-
-                { name: "생명력 150%", searchName: "알반 기사단의 훈련석 [몬스터-생명력 150%]", score: 10, price: Infinity },
-                { name: "대미지 150%", searchName: "알반 기사단의 훈련석 [몬스터-대미지 150%]", score: 10, price: Infinity },
-                { name: "보호 110%", searchName: "알반 기사단의 훈련석 [몬스터-보호 110%]", score: 10, price: Infinity },
-                { name: "방어 110%", searchName: "알반 기사단의 훈련석 [몬스터-방어 110%]", score: 10, price: Infinity },
-                { name: "지력 120%", searchName: "알반 기사단의 훈련석 [몬스터-지력 120%]", score: 10, price: Infinity },
-                { name: "행운 120%", searchName: "알반 기사단의 훈련석 [몬스터-행운 120%]", score: 10, price: Infinity },
-            ]
+            monster: [{ name: "선택 안 함", searchName: null, score: 0, price: 0 }]
         };
 
         const GRADES = {
             "SS": { min: 190, max: 9999 }, "S":  { min: 130, max: 189 }, "A":  { min: 100, max: 129 }, "B":  { min: 70, max: 99 }
         };
 
-        // 버셀 백엔드(api/auction.js)를 호출하여 최저가 가져오기
+        // 1. 페이지 로딩 시 item.json 불러오기
+        async function loadItems() {
+            try {
+                const response = await fetch('./item.json');
+                if (!response.ok) throw new Error("item.json 파일을 찾을 수 없습니다.");
+                
+                const data = await response.json();
+                
+                data.forEach(item => {
+                    const fullName = item[0];
+                    const score = parseInt(item[1], 10);
+
+                    // 괄호 안의 글자 분석: "[난이도-하드 중급]" -> 카테고리: 난이도, 이름: 하드 중급
+                    const match = fullName.match(/\[(.*?)-(.*?)\]/);
+                    if (match) {
+                        const categoryKR = match[1].trim();
+                        const shortName = match[2].trim();
+
+                        let catKey = "";
+                        if (categoryKR === "난이도") catKey = "difficulty";
+                        else if (categoryKR === "훈련 인원") catKey = "players";
+                        else if (categoryKR === "파티원") catKey = "party";
+                        else if (categoryKR === "몬스터") catKey = "monster";
+
+                        if (catKey) {
+                            STONES[catKey].push({
+                                name: shortName,
+                                searchName: fullName,
+                                score: score,
+                                price: Infinity // 초기 가격은 무한대(알 수 없음)
+                            });
+                        }
+                    }
+                });
+
+                // 데이터 분류 완료 후 화면의 드롭다운(select) 생성
+                buildSelectMenus();
+                document.getElementById('status-text').innerText = "✅ 훈련석 데이터 로드 완료! 계산 준비 끝.";
+                document.getElementById('status-text').style.color = '#27ae60';
+
+            } catch (error) {
+                document.getElementById('status-text').innerText = "❌ 에러: " + error.message;
+                document.getElementById('status-text').style.color = '#c0392b';
+            }
+        }
+
+        // 2. STONES 객체를 바탕으로 HTML <select> 옵션 자동 생성
+        function buildSelectMenus() {
+            const mapping = {
+                'diff-select': 'difficulty',
+                'player-select': 'players',
+                'party-select': 'party',
+                'monster-select': 'monster'
+            };
+
+            for (const selectId in mapping) {
+                const catKey = mapping[selectId];
+                const selectEl = document.getElementById(selectId);
+                
+                STONES[catKey].forEach(stone => {
+                    const option = document.createElement('option');
+                    option.value = stone.name;
+                    
+                    if (stone.name === "선택 안 함") {
+                        option.text = "자유롭게 찾기";
+                    } else {
+                        const sign = stone.score > 0 ? '+' : '';
+                        option.text = `${stone.name} (${sign}${stone.score}점)`;
+                    }
+                    selectEl.appendChild(option);
+                });
+            }
+        }
+
+        // 버셀 백엔드를 호출하여 최저가 가져오기
         async function fetchLowestPrice(itemName) {
             try {
                 const response = await fetch(`/api/auction?itemName=${encodeURIComponent(itemName)}`);
@@ -177,7 +171,6 @@
                 }
                 return Infinity; // 매물 없음
             } catch (error) {
-                console.error(error);
                 return Infinity; 
             }
         }
@@ -188,7 +181,6 @@
             resultBox.style.display = 'none';
             statusText.style.color = '#2980b9';
             
-            // 1. 유저가 선택한 옵션들 가져오기
             const selections = {
                 difficulty: document.getElementById('diff-select').value,
                 players: document.getElementById('player-select').value,
@@ -196,21 +188,18 @@
                 monster: document.getElementById('monster-select').value
             };
 
-            // 2. 검색해야 할 훈련석 목록 추려내기 (속도 최적화: 필요한 것만 검색)
             const stonesToFetch = new Set();
             for (const category in selections) {
                 const selectedName = selections[category];
                 if (selectedName === "선택 안 함") {
-                    // 선택 안 했으면 해당 카테고리 전체 검색
+                    // null 이 아닌(조회해야 할) 훈련석만 검색 목록에 추가
                     STONES[category].forEach(s => { if(s.searchName) stonesToFetch.add(s) });
                 } else {
-                    // 고정했으면 해당 훈련석만 검색
                     const stone = STONES[category].find(s => s.name === selectedName);
                     if (stone && stone.searchName) stonesToFetch.add(stone);
                 }
             }
 
-            // 3. 가격 데이터 실시간 수집 (버셀 서버 활용)
             let fetchedCount = 0;
             const totalToFetch = stonesToFetch.size;
 
@@ -218,13 +207,12 @@
                 fetchedCount++;
                 statusText.innerText = `🔄 경매장 조회 중... (${fetchedCount}/${totalToFetch})\n[ ${stone.name} ]`;
                 stone.price = await fetchLowestPrice(stone.searchName);
-                await new Promise(r => setTimeout(r, 100)); // API 호출 부하 방지용 짧은 대기
+                await new Promise(r => setTimeout(r, 100));
             }
 
             statusText.innerText = '✅ 모든 가격 실시간 조회 완료!';
             statusText.style.color = '#27ae60';
             
-            // 4. 최적의 조합 계산
             calculateBestCombinations(selections);
             resultBox.style.display = 'block';
         }
@@ -233,7 +221,6 @@
             const targetGradeKey = document.getElementById('grade-select').value;
             const targetScoreRange = GRADES[targetGradeKey];
             
-            // 고정한 카테고리는 해당 훈련석만, 아니면 전체 배열을 사용
             const validDiffs = selections.difficulty === "선택 안 함" ? STONES.difficulty : STONES.difficulty.filter(s => s.name === selections.difficulty);
             const validPlayers = selections.players === "선택 안 함" ? STONES.players : STONES.players.filter(s => s.name === selections.players);
             const validPartys = selections.party === "선택 안 함" ? STONES.party : STONES.party.filter(s => s.name === selections.party);
@@ -241,7 +228,6 @@
 
             let possibleCombos = [];
 
-            // 모든 경우의 수 계산
             for (let d of validDiffs) {
                 for (let pl of validPlayers) {
                     for (let pa of validPartys) {
@@ -249,7 +235,6 @@
                             let totalScore = d.score + pl.score + pa.score + m.score;
                             let totalPrice = d.price + pl.price + pa.price + m.price;
 
-                            // 점수를 만족하고, 모든 돌의 매물이 존재하는(Infinity가 아닌) 조합만 추가
                             if (totalScore >= targetScoreRange.min && totalScore <= targetScoreRange.max && totalPrice !== Infinity) {
                                 possibleCombos.push({ difficulty: d, players: pl, party: pa, monster: m, totalScore, totalPrice });
                             }
@@ -258,20 +243,17 @@
                 }
             }
 
-            // 가격 순으로 오름차순 정렬
             possibleCombos.sort((a, b) => a.totalPrice - b.totalPrice);
 
-            // 결과 화면 출력
             const resultDiv = document.getElementById('result-text');
             const formatGold = (num) => num === 0 ? "비용 없음" : num.toLocaleString() + " G";
             
             if (possibleCombos.length === 0) {
-                resultDiv.innerHTML = `<p style="color: #e74c3c; font-weight: bold; text-align: center;">현재 조건에 맞는 매물이 경매장에 부족합니다.<br>조건을 완화하거나 잠시 후 다시 시도해보세요.</p>`;
+                resultDiv.innerHTML = `<p style="color: #e74c3c; font-weight: bold; text-align: center;">현재 조건에 맞는 매물이 경매장에 부족합니다.</p>`;
                 return;
             }
 
             let html = '';
-            // 최대 2개까지만 출력
             const maxDisplay = Math.min(possibleCombos.length, 2);
             const ranks = ["🥇 1순위 추천 조합", "🥈 2순위 추천 조합"];
 
@@ -293,9 +275,11 @@
                     </div>
                 `;
             }
-
             resultDiv.innerHTML = html;
         }
+
+        // 스크립트가 실행되면 가장 먼저 JSON을 불러옵니다.
+        loadItems();
     </script>
 </body>
 </html>
