@@ -187,7 +187,7 @@
 
         async function fetchLowestPrice(itemName) {
             try {
-                const response = await fetch(`/api/search?itemName=${encodeURIComponent(itemName)}`);
+                const response = await fetch(`https://mabinogi-alban-calaculator.vercel.app/api/search?itemName=${encodeURIComponent(itemName)}`);
                 const data = await response.json();
                 if (data.error) throw new Error(data.error);
                 if (data.auction_item && data.auction_item.length > 0) {
