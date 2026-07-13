@@ -1,7 +1,7 @@
 export default async function handler(req, res) {
     // CORS 헤더 설정
     res.setHeader('Access-Control-Allow-Credentials', true);
-    res.setHeader('Access-Control-Allow-Origin', 'https://jybbear.github.io/mabinogi_alban_calaculator');
+    res.setHeader('Access-Control-Allow-Origin', 'https://jybbear.github.io');
     res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
     res.setHeader('Access-Control-Allow-Headers', 'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version');
 
