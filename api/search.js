@@ -12,10 +12,10 @@ export default async function handler(req, res) {
     }
 
     // 파라미터 검증
-    const itemName = req.query.itemName;
+    const param = req.query.itemName;
 
     // 만약 itemName이 아예 없거나, 글자(string)가 아니거나, 빈칸만 있으면 에러
-    if (!itemName || typeof itemName !== 'string' || itemName.trim() === '') {
+    if (!param || typeof param !== 'string' || param.trim() === '') {
         return res.status(400).json({ error: '아이템 이름이 올바르지 않거나 없습니다.' });
     }
     
