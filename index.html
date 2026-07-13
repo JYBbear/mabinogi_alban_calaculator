@@ -36,7 +36,7 @@
         <p class="site-description">
             Nexon Open Api를 통한 실시간 경매장 조회로<br>
             목표 보상등급을 만족하는 최저가 훈련석 조합을 알려주는 사이트입니다.<br>
-            소지한 훈련석을 선택하시면 해당 훈련석이 포함된 최저가 조합을 확인 가능합니다.<br>
+            소지한 훈련석을 지정하시면 해당 훈련석이 포함된 최저가 조합을 확인 가능합니다.<br>
             <span style="font-size: 0.85em; color: #95a5a6;">(숨겨진 층 훈련석은 보상 점수에 영향을 주지 않아 제외했습니다.)</span>
         </p>
 
@@ -312,10 +312,10 @@
                             총 비용: <strong style="color: #e74c3c; font-size: 1.15em;">${formatGold(combo.actualCost)}</strong>${extraCostInfo}
                         </p>
                         <ul>
-                            <li><strong>난이도:</strong> ${combo.difficulty.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.difficulty.price)}${isDOwned ? ' / 소지중' : ''})</span></li>
-                            <li><strong>인원수:</strong> ${combo.players.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.players.price)}${isPlOwned ? ' / 소지중' : ''})</span></li>
-                            <li><strong>파티원:</strong> ${combo.party.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.party.price)}${isPaOwned ? ' / 소지중' : ''})</span></li>
-                            <li><strong>몬스터:</strong> ${combo.monster.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.monster.price)}${isMOwned ? ' / 소지중' : ''})</span></li>
+                            <li><strong>난이도:</strong> ${combo.difficulty.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.difficulty.price)}${isDOwned ? ' / 소지 중' : ''})</span></li>
+                            <li><strong>인원수:</strong> ${combo.players.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.players.price)}${isPlOwned ? ' / 소지 중' : ''})</span></li>
+                            <li><strong>파티원:</strong> ${combo.party.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.party.price)}${isPaOwned ? ' / 소지 중' : ''})</span></li>
+                            <li><strong>몬스터:</strong> ${combo.monster.name} <span style="color: gray; font-size: 0.9em;">(${formatGold(combo.monster.price)}${isMOwned ? ' / 소지 중' : ''})</span></li>
                         </ul>
                     </div>
                 `;
